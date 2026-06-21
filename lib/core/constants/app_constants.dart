@@ -31,4 +31,5 @@ abstract class AppRoutes {
   static const String numberLookup = '/lookup';
   static const String settings = '/settings';
   static const String callerDetail = '/caller/:number';
+  static const String threatFeed = '/threats';
 }

@@ -10,13 +10,15 @@ class HomeShell extends StatelessWidget {
   static const _tabs = [
     (icon: Icons.call_outlined, activeIcon: Icons.call, label: 'Calls', route: AppRoutes.home),
     (icon: Icons.block_outlined, activeIcon: Icons.block, label: 'Blocklist', route: AppRoutes.blocklist),
+    (icon: Icons.security_outlined, activeIcon: Icons.security, label: 'Threats', route: AppRoutes.threatFeed),
     (icon: Icons.settings_outlined, activeIcon: Icons.settings, label: 'Settings', route: AppRoutes.settings),
   ];
 
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     if (location.startsWith(AppRoutes.blocklist)) return 1;
-    if (location.startsWith(AppRoutes.settings)) return 2;
+    if (location.startsWith(AppRoutes.threatFeed)) return 2;
+    if (location.startsWith(AppRoutes.settings)) return 3;
     return 0;
   }
 

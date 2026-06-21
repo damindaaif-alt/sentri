@@ -8,6 +8,7 @@ import '../../features/caller_id/presentation/pages/number_lookup_page.dart';
 import '../../features/blocklist/presentation/pages/blocklist_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/threat_feed/presentation/pages/threat_feed_page.dart';
 import '../constants/app_constants.dart';
 import '../di/injection.dart';
 import 'home_shell.dart';
@@ -47,6 +48,10 @@ abstract class AppRouter {
           GoRoute(
             path: AppRoutes.settings,
             builder: (context, state) => const SettingsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.threatFeed,
+            builder: (context, state) => const ThreatFeedPage(),
           ),
         ],
       ),

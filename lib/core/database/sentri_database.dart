@@ -7,7 +7,7 @@ import 'package:sqflite/sqflite.dart';
 @singleton
 class SentriDatabase {
   static const _dbName = 'sentri.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   Database? _db;
 
@@ -22,6 +22,7 @@ class SentriDatabase {
       dbPath,
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -58,6 +59,29 @@ class SentriDatabase {
       CREATE TABLE user_settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
+      )
+    ''');
+    await _createThreatEntriesTable(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) await _createThreatEntriesTable(db);
+  }
+
+  Future<void> _createThreatEntriesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS threat_entries (
+        id TEXT PRIMARY KEY,
+        phone_number TEXT NOT NULL,
+        category TEXT NOT NULL,
+        risk_score INTEGER NOT NULL,
+        region TEXT,
+        report_count INTEGER NOT NULL DEFAULT 0,
+        is_trending INTEGER NOT NULL DEFAULT 0,
+        is_auto_blocked INTEGER NOT NULL DEFAULT 0,
+        first_seen_ms INTEGER NOT NULL,
+        last_seen_ms INTEGER NOT NULL,
+        tags TEXT
       )
     ''');
   }
