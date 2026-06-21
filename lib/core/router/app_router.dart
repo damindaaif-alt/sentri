@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/call_log/presentation/pages/call_log_page.dart';
@@ -7,6 +8,7 @@ import '../../features/blocklist/presentation/pages/blocklist_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../constants/app_constants.dart';
+import '../di/injection.dart';
 import 'home_shell.dart';
 
 abstract class AppRouter {
@@ -15,7 +17,12 @@ abstract class AppRouter {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        redirect: (context, state) => AppRoutes.home,
+        redirect: (context, state) async {
+          final storage = getIt<FlutterSecureStorage>();
+          final done = await storage.read(
+              key: AppConstants.keyOnboardingComplete);
+          return done == 'true' ? AppRoutes.home : AppRoutes.onboarding;
+        },
       ),
       GoRoute(
         path: AppRoutes.onboarding,
