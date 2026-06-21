@@ -41,17 +41,25 @@ class _NumberLookupPageState extends State<NumberLookupPage> {
   Future<void> _loadCallLog() async {
     final raw = await device.CallLog.query();
 
-    // Deduplicate: keep the most recent entry per number
+    // Deduplicate by digit-only key so 021894338 and +6421894338 collapse to one entry.
+    // Keep the entry whose number has a + prefix (international) if available,
+    // otherwise keep the first seen (most recent, since CallLog is newest-first).
     final seen = <String, _Entry>{};
     for (final e in raw) {
       final number = e.number ?? '';
       if (number.isEmpty) continue;
-      if (!seen.containsKey(number)) {
-        seen[number] = _Entry(
-          number: number,
-          name: e.name?.isNotEmpty == true ? e.name : null,
-          timestamp: DateTime.fromMillisecondsSinceEpoch(e.timestamp ?? 0),
-        );
+      final key = number.replaceAll(RegExp(r'\D'), '').replaceAll(RegExp(r'^0+'), '');
+      if (key.isEmpty) continue;
+      final entry = _Entry(
+        number: number,
+        name: e.name?.isNotEmpty == true ? e.name : null,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(e.timestamp ?? 0),
+      );
+      if (!seen.containsKey(key)) {
+        seen[key] = entry;
+      } else if (number.startsWith('+') && !seen[key]!.number.startsWith('+')) {
+        // Prefer the international format for display
+        seen[key] = entry;
       }
     }
 
