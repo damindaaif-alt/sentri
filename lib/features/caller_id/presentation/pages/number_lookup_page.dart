@@ -48,7 +48,11 @@ class _NumberLookupPageState extends State<NumberLookupPage> {
     for (final e in raw) {
       final number = e.number ?? '';
       if (number.isEmpty) continue;
-      final key = number.replaceAll(RegExp(r'\D'), '').replaceAll(RegExp(r'^0+'), '');
+      final digits = number.replaceAll(RegExp(r'\D'), '');
+      if (digits.isEmpty) continue;
+      // Use last 9 digits as key — matches local (0220521066) and
+      // international (+64220521066) formats of the same number
+      final key = digits.length > 9 ? digits.substring(digits.length - 9) : digits;
       if (key.isEmpty) continue;
       final entry = _Entry(
         number: number,
