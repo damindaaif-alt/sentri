@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/call_log/presentation/pages/call_log_page.dart';
 import '../../features/caller_id/presentation/pages/caller_detail_page.dart';
+import '../../features/caller_id/presentation/pages/number_lookup_page.dart';
 import '../../features/blocklist/presentation/pages/blocklist_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -48,6 +49,10 @@ abstract class AppRouter {
             builder: (context, state) => const SettingsPage(),
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.numberLookup,
+        builder: (context, state) => const NumberLookupPage(),
       ),
       GoRoute(
         path: AppRoutes.callerDetail,

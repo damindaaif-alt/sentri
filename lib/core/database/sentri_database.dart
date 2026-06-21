@@ -104,6 +104,19 @@ class SentriDatabase {
     return db.delete('caller_cache');
   }
 
+  Future<List<Map<String, dynamic>>> getAllCachedCallers({int limit = 20}) async {
+    final db = await database;
+    final rows = await db.query(
+      'caller_cache',
+      orderBy: 'cached_at DESC',
+      limit: limit,
+    );
+    return rows.map((r) {
+      final payload = jsonDecode(r['payload'] as String) as Map<String, dynamic>;
+      return {'phone_number': r['phone_number'], ...payload};
+    }).toList();
+  }
+
   // --- Blocked Numbers ---
 
   Future<List<Map<String, dynamic>>> getAllBlockedNumbers() async {
