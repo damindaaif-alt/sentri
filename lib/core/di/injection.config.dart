@@ -20,6 +20,12 @@ import '../../features/blocklist/domain/usecases/block_number.dart' as _i200;
 import '../../features/blocklist/domain/usecases/unblock_number.dart' as _i316;
 import '../../features/blocklist/presentation/bloc/blocklist_bloc.dart'
     as _i692;
+import '../../features/call_log/data/repositories/call_log_repository_impl.dart'
+    as _i1027;
+import '../../features/call_log/domain/repositories/call_log_repository.dart'
+    as _i159;
+import '../../features/call_log/domain/usecases/get_call_log.dart' as _i661;
+import '../../features/call_log/presentation/bloc/call_log_bloc.dart' as _i54;
 import '../../features/caller_id/data/datasources/caller_id_local_datasource.dart'
     as _i555;
 import '../../features/caller_id/data/datasources/caller_id_remote_datasource.dart'
@@ -55,6 +61,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.singleton<_i585.SettingsBloc>(() => _i585.SettingsBloc());
     gh.factory<_i236.BlocklistRepository>(
         () => _i82.BlocklistRepositoryImpl(gh<_i715.SentriDatabase>()));
+    gh.factory<_i159.CallLogRepository>(
+        () => _i1027.CallLogRepositoryImpl(gh<_i715.SentriDatabase>()));
     gh.factory<_i555.CallerIdLocalDataSource>(
         () => _i555.CallerIdLocalDataSourceImpl(gh<_i715.SentriDatabase>()));
     gh.singleton<_i667.DioClient>(
@@ -63,6 +71,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i200.BlockNumber(gh<_i236.BlocklistRepository>()));
     gh.factory<_i316.UnblockNumber>(
         () => _i316.UnblockNumber(gh<_i236.BlocklistRepository>()));
+    gh.factory<_i661.GetCallLog>(
+        () => _i661.GetCallLog(gh<_i159.CallLogRepository>()));
     gh.factory<_i244.CallerIdRemoteDataSource>(
         () => _i244.CallerIdRemoteDataSourceImpl(gh<_i667.DioClient>()));
     gh.factory<_i692.BlocklistBloc>(() => _i692.BlocklistBloc(
@@ -70,6 +80,8 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i200.BlockNumber>(),
           gh<_i316.UnblockNumber>(),
         ));
+    gh.factory<_i54.CallLogBloc>(
+        () => _i54.CallLogBloc(gh<_i661.GetCallLog>()));
     gh.factory<_i99.CallerIdRepository>(() => _i251.CallerIdRepositoryImpl(
           gh<_i244.CallerIdRemoteDataSource>(),
           gh<_i555.CallerIdLocalDataSource>(),
