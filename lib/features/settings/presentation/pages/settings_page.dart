@@ -215,14 +215,25 @@ class _SettingsPageState extends State<SettingsPage>
 
   Future<void> _openCallScreeningSettings(BuildContext context) async {
     try {
-      await _screeningChannel.invokeMethod('openCallScreeningSettings');
-    } on PlatformException {
-      if (context.mounted) {
+      final result = await _screeningChannel
+          .invokeMethod<String>('openCallScreeningSettings');
+      if (!context.mounted) return;
+      // App settings opened (Samsung fallback) — guide the user
+      if (result == 'app_settings') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Could not open call screening settings')),
+            content: Text(
+              'Go to Permissions → Phone → allow, then set Sentri as your default calling app',
+            ),
+            duration: Duration(seconds: 6),
+          ),
         );
       }
+    } on PlatformException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Could not open settings')),
+      );
     }
   }
 
