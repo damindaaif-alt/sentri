@@ -43,6 +43,19 @@ class CallerInfo extends Equatable {
   bool get isCritical => riskScore >= 80;
   bool get isUnknown => category == RiskCategory.unknown && reportCount == 0;
 
+  CallerInfo copyWithName(String name) => CallerInfo(
+        phoneNumber: phoneNumber,
+        name: name,
+        organization: organization,
+        riskScore: riskScore,
+        category: category,
+        spoofingStatus: spoofingStatus,
+        reportCount: reportCount,
+        isVerifiedBusiness: isVerifiedBusiness,
+        lastReportedAt: lastReportedAt,
+        evidenceTags: evidenceTags,
+      );
+
   @override
   List<Object?> get props => [
         phoneNumber,

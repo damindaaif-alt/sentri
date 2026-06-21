@@ -58,6 +58,7 @@ abstract class AppRouter {
         path: AppRoutes.callerDetail,
         builder: (context, state) => CallerDetailPage(
           phoneNumber: state.pathParameters['number'] ?? '',
+          callerName: state.uri.queryParameters['name'],
         ),
       ),
     ],

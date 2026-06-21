@@ -10,7 +10,10 @@ import '../widgets/risk_score_badge.dart';
 
 class CallerDetailPage extends StatelessWidget {
   final String phoneNumber;
-  const CallerDetailPage({super.key, required this.phoneNumber});
+  // Name from the device call log — used when the API returns no name
+  final String? callerName;
+  const CallerDetailPage(
+      {super.key, required this.phoneNumber, this.callerName});
 
   @override
   Widget build(BuildContext context) {
@@ -18,17 +21,21 @@ class CallerDetailPage extends StatelessWidget {
       create: (_) =>
           getIt<CallerIdBloc>()..add(CallerIdLookupRequested(phoneNumber)),
       child: Scaffold(
-        appBar: AppBar(title: const Text('Caller Info')),
+        appBar: AppBar(title: Text(callerName ?? 'Caller Info')),
         body: BlocBuilder<CallerIdBloc, CallerIdState>(
           builder: (context, state) => switch (state) {
             CallerIdLoading() =>
               const Center(child: CircularProgressIndicator()),
-            CallerIdLoaded(:final callerInfo) =>
-              _CallerDetail(info: callerInfo),
+            CallerIdLoaded(:final callerInfo) => _CallerDetail(
+                info: callerInfo.name == null && callerName != null
+                    ? callerInfo.copyWithName(callerName!)
+                    : callerInfo,
+              ),
             CallerIdError(:final message) => _ErrorView(message: message),
             CallerIdReported() => _CallerDetail(
                 info: CallerInfo(
                   phoneNumber: phoneNumber,
+                  name: callerName,
                   riskScore: 0,
                   category: RiskCategory.unknown,
                   spoofingStatus: SpoofingStatus.unknown,

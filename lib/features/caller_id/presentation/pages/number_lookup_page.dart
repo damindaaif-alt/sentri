@@ -1,10 +1,9 @@
+import 'package:call_log/call_log.dart' as device;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/database/sentri_database.dart';
-import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/phone_number_utils.dart';
 import '../widgets/risk_score_badge.dart';
@@ -19,14 +18,17 @@ class NumberLookupPage extends StatefulWidget {
 class _NumberLookupPageState extends State<NumberLookupPage> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
-  String _input = '';
-  List<Map<String, dynamic>> _recents = [];
+
+  // Deduplicated call log entries — loaded once on init
+  List<_Entry> _allEntries = [];
+  List<_Entry> _filtered = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadRecents();
-    _controller.addListener(() => setState(() => _input = _controller.text));
+    _loadCallLog();
+    _controller.addListener(_onQuery);
   }
 
   @override
@@ -36,27 +38,76 @@ class _NumberLookupPageState extends State<NumberLookupPage> {
     super.dispose();
   }
 
-  Future<void> _loadRecents() async {
-    final rows = await getIt<SentriDatabase>().getAllCachedCallers();
-    if (mounted) setState(() => _recents = rows);
+  Future<void> _loadCallLog() async {
+    final raw = await device.CallLog.query();
+
+    // Deduplicate: keep the most recent entry per number
+    final seen = <String, _Entry>{};
+    for (final e in raw) {
+      final number = e.number ?? '';
+      if (number.isEmpty) continue;
+      if (!seen.containsKey(number)) {
+        seen[number] = _Entry(
+          number: number,
+          name: e.name?.isNotEmpty == true ? e.name : null,
+          timestamp: DateTime.fromMillisecondsSinceEpoch(e.timestamp ?? 0),
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _allEntries = seen.values.toList()
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        _filtered = _allEntries;
+        _loading = false;
+      });
+    }
   }
 
-  String? get _normalised => PhoneNumberUtils.toE164(_input.trim());
-  bool get _isValid => _normalised != null && PhoneNumberUtils.isValid(_normalised!);
+  void _onQuery() {
+    final q = _controller.text.trim().toLowerCase();
+    setState(() {
+      if (q.isEmpty) {
+        _filtered = _allEntries;
+      } else {
+        _filtered = _allEntries.where((e) {
+          final nameMatch = e.name?.toLowerCase().contains(q) ?? false;
+          final numberMatch = e.number.contains(q);
+          return nameMatch || numberMatch;
+        }).toList();
+      }
+    });
+  }
+
+  String? get _normalised =>
+      PhoneNumberUtils.toE164(_controller.text.trim());
+  bool get _isValid =>
+      _normalised != null && PhoneNumberUtils.isValid(_normalised!);
+
+  void _goToDetail(String number, {String? name}) {
+    _focus.unfocus();
+    final encoded = Uri.encodeComponent(number);
+    final nameParam =
+        name != null ? '?name=${Uri.encodeComponent(name)}' : '';
+    context.push(
+      '${AppRoutes.callerDetail.replaceFirst(':number', encoded)}$nameParam',
+    );
+  }
 
   void _lookup() {
     if (!_isValid) return;
-    _focus.unfocus();
-    context.push(
-      AppRoutes.callerDetail.replaceFirst(
-        ':number',
-        Uri.encodeComponent(_normalised!),
-      ),
-    );
+    final number = _normalised!;
+    // check if we already have a name for this number in the call log
+    final match = _allEntries.where((e) => e.number == number).firstOrNull;
+    _goToDetail(number, name: match?.name);
   }
 
   @override
   Widget build(BuildContext context) {
+    final query = _controller.text.trim();
+    final showResults = query.isNotEmpty || _allEntries.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Number Lookup')),
       body: Column(
@@ -73,17 +124,17 @@ class _NumberLookupPageState extends State<NumberLookupPage> {
             },
           ),
           Expanded(
-            child: _recents.isEmpty
-                ? _EmptyHint(onPaste: _handlePaste)
-                : _RecentsList(
-                    recents: _recents,
-                    onTap: (number) => context.push(
-                      AppRoutes.callerDetail.replaceFirst(
-                        ':number',
-                        Uri.encodeComponent(number),
-                      ),
-                    ),
-                  ),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : showResults
+                    ? _ResultsList(
+                        entries: _filtered,
+                        query: query,
+                        onTap: (e) => _goToDetail(e.number, name: e.name),
+                        onPaste: _handlePaste,
+                        emptyQuery: query.isEmpty,
+                      )
+                    : _EmptyHint(onPaste: _handlePaste),
           ),
         ],
       ),
@@ -94,10 +145,20 @@ class _NumberLookupPageState extends State<NumberLookupPage> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     if (data?.text != null && mounted) {
       _controller.text = data!.text!.trim();
-      _controller.selection = TextSelection.collapsed(
-          offset: _controller.text.length);
+      _controller.selection =
+          TextSelection.collapsed(offset: _controller.text.length);
     }
   }
+}
+
+// ── Data model ────────────────────────────────────────────────────────────────
+
+class _Entry {
+  final String number;
+  final String? name;
+  final DateTime timestamp;
+  const _Entry(
+      {required this.number, this.name, required this.timestamp});
 }
 
 // ── Search bar ────────────────────────────────────────────────────────────────
@@ -123,11 +184,7 @@ class _SearchBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,20 +193,20 @@ class _SearchBar extends StatelessWidget {
             controller: controller,
             focusNode: focus,
             autofocus: true,
-            keyboardType: TextInputType.phone,
+            keyboardType: TextInputType.text,
             textInputAction: TextInputAction.search,
-            style: theme.textTheme.headlineSmall?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w500,
-              letterSpacing: 1.2,
+              letterSpacing: 0.5,
             ),
             decoration: InputDecoration(
-              hintText: '+94 77 000 0000',
-              hintStyle: theme.textTheme.headlineSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+              hintText: 'Name or number…',
+              hintStyle: theme.textTheme.titleLarge?.copyWith(
+                color:
+                    theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
                 fontWeight: FontWeight.w400,
-                letterSpacing: 1.2,
               ),
-              prefixIcon: Icon(Icons.phone_outlined,
+              prefixIcon: Icon(Icons.search,
                   color: SentriColors.primary, size: 22),
               suffixIcon: controller.text.isNotEmpty
                   ? IconButton(
@@ -164,19 +221,12 @@ class _SearchBar extends StatelessWidget {
             ),
             onSubmitted: (_) => onLookup(),
           ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: isValid ? onLookup : null,
-            icon: const Icon(Icons.search, size: 18),
-            label: const Text('Look up number'),
-          ),
-          if (!isValid && controller.text.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Enter a valid international number (e.g. +94 77 123 4567)',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
+          if (isValid) ...[
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: onLookup,
+              icon: const Icon(Icons.manage_search, size: 18),
+              label: Text('Look up ${controller.text.trim()}'),
             ),
           ],
         ],
@@ -185,19 +235,32 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-// ── Recent lookups list ───────────────────────────────────────────────────────
+// ── Results list ──────────────────────────────────────────────────────────────
 
-class _RecentsList extends StatelessWidget {
-  final List<Map<String, dynamic>> recents;
-  final void Function(String number) onTap;
+class _ResultsList extends StatelessWidget {
+  final List<_Entry> entries;
+  final String query;
+  final void Function(_Entry) onTap;
+  final VoidCallback onPaste;
+  final bool emptyQuery;
 
-  const _RecentsList({required this.recents, required this.onTap});
+  const _ResultsList({
+    required this.entries,
+    required this.query,
+    required this.onTap,
+    required this.onPaste,
+    required this.emptyQuery,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (entries.isEmpty && !emptyQuery) {
+      return _NoMatch(query: query, onPaste: onPaste);
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.only(top: 8),
-      itemCount: recents.length + 1,
+      itemCount: entries.length + 1,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
         if (i == 0) {
@@ -205,7 +268,7 @@ class _RecentsList extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Text(
-              'Recent lookups',
+              emptyQuery ? 'Recent calls' : 'Matches',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
@@ -214,24 +277,134 @@ class _RecentsList extends StatelessWidget {
             ),
           );
         }
-        final entry = recents[i - 1];
-        final phone = entry['phone_number'] as String? ?? '';
-        final score = (entry['risk_score'] as num?)?.toInt() ?? 0;
-        final name = entry['name'] as String?;
-        return ListTile(
-          leading: RiskScoreBadge(score: score, size: 44),
-          title: Text(name ?? phone,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: name != null ? Text(phone) : null,
-          trailing: const Icon(Icons.chevron_right, size: 18),
-          onTap: () => onTap(phone),
-        );
+        final e = entries[i - 1];
+        return _EntryTile(entry: e, query: query, onTap: () => onTap(e));
       },
     );
   }
 }
 
-// ── Empty hint ────────────────────────────────────────────────────────────────
+class _EntryTile extends StatelessWidget {
+  final _Entry entry;
+  final String query;
+  final VoidCallback onTap;
+  const _EntryTile(
+      {required this.entry, required this.query, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasName = entry.name != null;
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: theme.colorScheme.primaryContainer,
+        child: Text(
+          _initials(entry.name ?? entry.number),
+          style: TextStyle(
+            color: theme.colorScheme.onPrimaryContainer,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      title: _Highlighted(
+        text: hasName ? entry.name! : entry.number,
+        query: query,
+        style: theme.textTheme.bodyLarge!
+            .copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: hasName
+          ? _Highlighted(
+              text: entry.number,
+              query: query,
+              style: theme.textTheme.bodySmall!.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+            )
+          : null,
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: onTap,
+    );
+  }
+
+  static String _initials(String s) {
+    final parts = s.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return s.isNotEmpty ? s[0].toUpperCase() : '?';
+  }
+}
+
+/// Highlights [query] within [text] using the primary colour.
+class _Highlighted extends StatelessWidget {
+  final String text;
+  final String query;
+  final TextStyle style;
+  const _Highlighted(
+      {required this.text, required this.query, required this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    if (query.isEmpty) return Text(text, style: style);
+
+    final lower = text.toLowerCase();
+    final q = query.toLowerCase();
+    final idx = lower.indexOf(q);
+    if (idx == -1) return Text(text, style: style);
+
+    return RichText(
+      text: TextSpan(children: [
+        TextSpan(text: text.substring(0, idx), style: style),
+        TextSpan(
+          text: text.substring(idx, idx + q.length),
+          style: style.copyWith(
+            color: SentriColors.primary,
+            backgroundColor:
+                SentriColors.primary.withOpacity(0.12),
+          ),
+        ),
+        TextSpan(text: text.substring(idx + q.length), style: style),
+      ]),
+    );
+  }
+}
+
+// ── No match ──────────────────────────────────────────────────────────────────
+
+class _NoMatch extends StatelessWidget {
+  final String query;
+  final VoidCallback onPaste;
+  const _NoMatch({required this.query, required this.onPaste});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_outlined,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4)),
+          const SizedBox(height: 16),
+          Text('No results for "$query"',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(
+            'If this is a full international number (e.g. +94 77 123 4567) the Look up button will appear above.',
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant, height: 1.5),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Empty hint (no call log loaded yet) ───────────────────────────────────────
 
 class _EmptyHint extends StatelessWidget {
   final VoidCallback onPaste;
@@ -245,24 +418,18 @@ class _EmptyHint extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.manage_search_outlined,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
-          ),
+          Icon(Icons.manage_search_outlined,
+              size: 64,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4)),
           const SizedBox(height: 16),
-          Text(
-            'Enter any phone number',
-            style: theme.textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+          Text('Search by name or number',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center),
           const SizedBox(height: 8),
           Text(
-            'Get an instant risk score, spoofing status, and community reports.',
+            'Search your call history or enter any international number for a risk check.',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.5,
-            ),
+                color: theme.colorScheme.onSurfaceVariant, height: 1.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),

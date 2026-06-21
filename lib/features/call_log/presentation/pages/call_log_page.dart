@@ -128,12 +128,15 @@ class _CallTile extends StatelessWidget {
               ? const Icon(Icons.warning_amber_rounded,
                   color: SentriColors.riskMedium, size: 18)
               : null,
-      onTap: () => context.push(
-        AppRoutes.callerDetail.replaceFirst(
-          ':number',
-          Uri.encodeComponent(record.phoneNumber),
-        ),
-      ),
+      onTap: () {
+        final encoded = Uri.encodeComponent(record.phoneNumber);
+        final nameParam = record.name != null
+            ? '?name=${Uri.encodeComponent(record.name!)}'
+            : '';
+        context.push(
+          '${AppRoutes.callerDetail.replaceFirst(':number', encoded)}$nameParam',
+        );
+      },
     );
   }
 
