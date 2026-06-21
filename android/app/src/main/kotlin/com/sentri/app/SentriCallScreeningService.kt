@@ -1,21 +1,10 @@
 package com.sentri.app
 
+import android.database.sqlite.SQLiteDatabase
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.util.Log
 
-/**
- * Android call screening service.
- *
- * Registered in AndroidManifest.xml as the default call screening app.
- * The Flutter engine is not running at screening time, so risk decisions
- * are made against a locally persisted blocklist written by the Dart layer
- * via shared SQLite (accessed via Room in a background process, or via
- * direct SQLite queries here).
- *
- * Production implementation: query the Drift DB file directly with
- * SupportSQLiteOpenHelper, or use a ContentProvider bridge.
- */
 class SentriCallScreeningService : CallScreeningService() {
 
     companion object {
@@ -23,19 +12,22 @@ class SentriCallScreeningService : CallScreeningService() {
     }
 
     override fun onScreenCall(callDetails: Call.Details) {
-        val number = callDetails.handle?.schemeSpecificPart ?: run {
-            allowCall(callDetails)
+        val rawNumber = callDetails.handle?.schemeSpecificPart
+        if (rawNumber.isNullOrBlank()) {
+            allow(callDetails)
             return
         }
 
-        Log.d(TAG, "Screening call from: $number")
+        Log.d(TAG, "Screening: $rawNumber")
 
-        val decision = if (isBlocked(number)) {
-            Log.i(TAG, "Blocking $number — found in local blocklist")
+        val blocked = queryBlocklist(rawNumber)
+        Log.i(TAG, "$rawNumber → ${if (blocked) "BLOCK" else "allow"}")
+
+        val response = if (blocked) {
             CallResponse.Builder()
                 .setRejectCall(true)
                 .setDisallowCall(true)
-                .setSkipCallLog(false)
+                .setSkipCallLog(false)   // still record it
                 .setSkipNotification(false)
                 .build()
         } else {
@@ -44,40 +36,55 @@ class SentriCallScreeningService : CallScreeningService() {
                 .setDisallowCall(false)
                 .build()
         }
-
-        respondToCall(callDetails, decision)
+        respondToCall(callDetails, response)
     }
 
-    private fun allowCall(callDetails: Call.Details) {
-        respondToCall(
-            callDetails,
-            CallResponse.Builder().setRejectCall(false).build(),
-        )
+    private fun allow(callDetails: Call.Details) {
+        respondToCall(callDetails, CallResponse.Builder().setRejectCall(false).build())
     }
 
     /**
-     * Query the local SQLite blocklist written by the Flutter/Drift layer.
-     * Replace with a proper DB helper in production.
+     * Queries the sqflite DB written by the Flutter layer.
+     *
+     * Matching strategy: compare the last 9 digits of both the incoming
+     * number and each stored number so that local (0771234567) and
+     * international (+94771234567) formats of the same number match.
      */
-    private fun isBlocked(number: String): Boolean {
+    private fun queryBlocklist(incomingRaw: String): Boolean {
+        val incomingKey = last9Digits(incomingRaw)
+        if (incomingKey.isEmpty()) return false
+
         return try {
             val dbPath = getDatabasePath("sentri.db").absolutePath
-            val db = android.database.sqlite.SQLiteDatabase.openDatabase(
-                dbPath,
-                null,
-                android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
+            val db = SQLiteDatabase.openDatabase(
+                dbPath, null, SQLiteDatabase.OPEN_READONLY
             )
             val cursor = db.rawQuery(
-                "SELECT 1 FROM blocked_numbers WHERE phone_number = ? LIMIT 1",
-                arrayOf(number),
+                """
+                SELECT phone_number FROM blocked_numbers
+                """.trimIndent(),
+                null
             )
-            val found = cursor.moveToFirst()
+            var found = false
+            while (cursor.moveToNext()) {
+                val stored = cursor.getString(0) ?: continue
+                if (last9Digits(stored) == incomingKey) {
+                    found = true
+                    break
+                }
+            }
             cursor.close()
             db.close()
             found
         } catch (e: Exception) {
-            Log.e(TAG, "DB query failed for $number: ${e.message}")
+            Log.e(TAG, "DB query failed: ${e.message}")
             false
         }
+    }
+
+    // Same normalisation as Dart PhoneNumberUtils / dedup logic
+    private fun last9Digits(number: String): String {
+        val digits = number.filter { it.isDigit() }
+        return if (digits.length > 9) digits.takeLast(9) else digits
     }
 }

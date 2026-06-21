@@ -33,7 +33,7 @@
 
         <!-- CallScreeningService — must be set as default call screening app by the user -->
         <service
-            android:name=".SentriCallScreeningService"
+            android:name="com.sentri.app.SentriCallScreeningService"
             android:exported="true"
             android:permission="android.permission.BIND_SCREENING_SERVICE">
             <intent-filter>

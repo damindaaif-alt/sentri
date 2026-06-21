@@ -5,13 +5,51 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/sentri_database.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../bloc/settings_bloc.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   static const _screeningChannel =
       MethodChannel('com.sentri.sentri/settings');
+
+  bool? _isScreeningActive; // null = loading
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkScreeningStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Re-check every time the user comes back to the app (e.g. after granting role)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkScreeningStatus();
+  }
+
+  Future<void> _checkScreeningStatus() async {
+    try {
+      final active = await _screeningChannel
+          .invokeMethod<bool>('isDefaultCallScreeningApp');
+      if (mounted) setState(() => _isScreeningActive = active ?? false);
+    } on PlatformException {
+      if (mounted) setState(() => _isScreeningActive = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,11 +109,47 @@ class SettingsPage extends StatelessWidget {
               const _SectionHeader('Call Screening'),
               ListTile(
                 leading: const Icon(Icons.phone_in_talk_outlined),
-                title: const Text('Set as default screening app'),
-                subtitle: const Text(
-                    'Required for Sentri to block calls in the background'),
-                trailing: const Icon(Icons.open_in_new, size: 18),
-                onTap: () => _openCallScreeningSettings(context),
+                title: const Text('Default screening app'),
+                subtitle: Text(
+                  _isScreeningActive == true
+                      ? 'Sentri is actively screening calls'
+                      : 'Tap to set Sentri as the default screening app',
+                ),
+                trailing: _isScreeningActive == null
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : _isScreeningActive == true
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle,
+                                  color: SentriColors.riskSafe, size: 18),
+                              const SizedBox(width: 4),
+                              Text('Active',
+                                  style: TextStyle(
+                                      color: SentriColors.riskSafe,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12)),
+                            ],
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: SentriColors.riskMedium, size: 18),
+                              const SizedBox(width: 4),
+                              Text('Inactive',
+                                  style: TextStyle(
+                                      color: SentriColors.riskMedium,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                onTap: _isScreeningActive == true
+                    ? null
+                    : () => _openCallScreeningSettings(context),
               ),
 
               // ── Appearance ───────────────────────────────────────────────
@@ -139,6 +213,19 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  Future<void> _openCallScreeningSettings(BuildContext context) async {
+    try {
+      await _screeningChannel.invokeMethod('openCallScreeningSettings');
+    } on PlatformException {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not open call screening settings')),
+        );
+      }
+    }
+  }
+
   void _showThresholdPicker(BuildContext context, int current) {
     showDialog(
       context: context,
@@ -160,19 +247,6 @@ class SettingsPage extends StatelessWidget {
         }).toList(),
       ),
     );
-  }
-
-  Future<void> _openCallScreeningSettings(BuildContext context) async {
-    try {
-      await _screeningChannel.invokeMethod('openCallScreeningSettings');
-    } on PlatformException {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Could not open call screening settings')),
-        );
-      }
-    }
   }
 
   Future<void> _clearCache(BuildContext context) async {
