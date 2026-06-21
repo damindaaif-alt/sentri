@@ -17,9 +17,21 @@ class CallerIdRepositoryImpl implements CallerIdRepository {
     final cached = await _local.getCached(phoneNumber);
     if (cached != null) return cached.toDomain();
 
-    final model = await _remote.lookup(phoneNumber);
-    await _local.cache(model);
-    return model.toDomain();
+    try {
+      final model = await _remote.lookup(phoneNumber);
+      await _local.cache(model);
+      return model.toDomain();
+    } catch (_) {
+      // No cache and no network — return an unscored unknown caller so the
+      // detail page still renders with block/report actions available.
+      return CallerInfo(
+        phoneNumber: phoneNumber,
+        riskScore: 0,
+        category: RiskCategory.unknown,
+        spoofingStatus: SpoofingStatus.unknown,
+        reportCount: 0,
+      );
+    }
   }
 
   @override

@@ -602,7 +602,8 @@ class _ErrorView extends StatelessWidget {
             Text('Could not load caller info',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(message,
+            Text(
+                'Check your connection and try again.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall),
           ],
