@@ -99,6 +99,11 @@ class SentriDatabase {
         where: 'phone_number = ?', whereArgs: [phoneNumber]);
   }
 
+  Future<int> clearAllCallerCache() async {
+    final db = await database;
+    return db.delete('caller_cache');
+  }
+
   // --- Blocked Numbers ---
 
   Future<List<Map<String, dynamic>>> getAllBlockedNumbers() async {

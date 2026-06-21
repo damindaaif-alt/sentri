@@ -1,5 +1,6 @@
 abstract class AppConstants {
   static const String appName = 'Sentri';
+  static const String appVersion = '1.0.0';
   static const String baseUrl = 'https://api.sentri.app/v1';
 
   // Risk score thresholds

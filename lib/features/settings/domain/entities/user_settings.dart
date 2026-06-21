@@ -7,6 +7,7 @@ class UserSettings extends Equatable {
   final int blockThreshold; // riskScore >= this → auto-block
   final bool vishingDetectionEnabled;
   final bool showRealTimeOverlay;
+  final bool notificationsEnabled;
 
   const UserSettings({
     this.themeMode = ThemeMode.system,
@@ -14,6 +15,7 @@ class UserSettings extends Equatable {
     this.blockThreshold = 80,
     this.vishingDetectionEnabled = false,
     this.showRealTimeOverlay = true,
+    this.notificationsEnabled = true,
   });
 
   UserSettings copyWith({
@@ -22,6 +24,7 @@ class UserSettings extends Equatable {
     int? blockThreshold,
     bool? vishingDetectionEnabled,
     bool? showRealTimeOverlay,
+    bool? notificationsEnabled,
   }) =>
       UserSettings(
         themeMode: themeMode ?? this.themeMode,
@@ -30,6 +33,7 @@ class UserSettings extends Equatable {
         vishingDetectionEnabled:
             vishingDetectionEnabled ?? this.vishingDetectionEnabled,
         showRealTimeOverlay: showRealTimeOverlay ?? this.showRealTimeOverlay,
+        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       );
 
   @override
@@ -39,5 +43,6 @@ class UserSettings extends Equatable {
         blockThreshold,
         vishingDetectionEnabled,
         showRealTimeOverlay,
+        notificationsEnabled,
       ];
 }

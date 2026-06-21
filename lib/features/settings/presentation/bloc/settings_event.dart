@@ -15,15 +15,23 @@ final class SettingsUpdated extends SettingsEvent {
   final bool? autoBlockHighRisk;
   final int? blockThreshold;
   final bool? vishingDetectionEnabled;
+  final bool? notificationsEnabled;
 
   const SettingsUpdated({
     this.themeMode,
     this.autoBlockHighRisk,
     this.blockThreshold,
     this.vishingDetectionEnabled,
+    this.notificationsEnabled,
   });
 
   @override
-  List<Object?> get props =>
-      [themeMode, autoBlockHighRisk, blockThreshold, vishingDetectionEnabled];
+  List<Object?> get props => [
+        themeMode,
+        autoBlockHighRisk,
+        blockThreshold,
+        vishingDetectionEnabled,
+        notificationsEnabled,
+      ];
 }
+

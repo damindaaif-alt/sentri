@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/database/sentri_database.dart';
+import '../../../../core/di/injection.dart';
 import '../bloc/settings_bloc.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
+
+  static const _screeningChannel =
+      MethodChannel('com.sentri.sentri/settings');
 
   @override
   Widget build(BuildContext context) {
@@ -16,14 +23,15 @@ class SettingsPage extends StatelessWidget {
           final s = state.settings;
           return ListView(
             children: [
+              // ── Protection ──────────────────────────────────────────────
               const _SectionHeader('Protection'),
               SwitchListTile(
                 title: const Text('Auto-block high risk calls'),
                 subtitle: Text('Block calls scoring ≥ ${s.blockThreshold}'),
                 value: s.autoBlockHighRisk,
-                onChanged: (v) => context.read<SettingsBloc>().add(
-                      SettingsUpdated(autoBlockHighRisk: v),
-                    ),
+                onChanged: (v) => context
+                    .read<SettingsBloc>()
+                    .add(SettingsUpdated(autoBlockHighRisk: v)),
               ),
               ListTile(
                 title: const Text('Block threshold'),
@@ -31,16 +39,46 @@ class SettingsPage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _showThresholdPicker(context, s.blockThreshold),
               ),
+
+              // ── Notifications ────────────────────────────────────────────
+              const Divider(),
+              const _SectionHeader('Notifications'),
+              SwitchListTile(
+                title: const Text('Risk alerts'),
+                subtitle: const Text(
+                    'Notify when an incoming call has a medium or higher risk score'),
+                value: s.notificationsEnabled,
+                onChanged: (v) => context
+                    .read<SettingsBloc>()
+                    .add(SettingsUpdated(notificationsEnabled: v)),
+              ),
+
+              // ── AI Features ──────────────────────────────────────────────
               const Divider(),
               const _SectionHeader('AI Features'),
               SwitchListTile(
                 title: const Text('Vishing detection (beta)'),
-                subtitle: const Text('On-device real-time scam script detection'),
+                subtitle: const Text(
+                    'On-device real-time scam script detection'),
                 value: s.vishingDetectionEnabled,
-                onChanged: (v) => context.read<SettingsBloc>().add(
-                      SettingsUpdated(vishingDetectionEnabled: v),
-                    ),
+                onChanged: (v) => context
+                    .read<SettingsBloc>()
+                    .add(SettingsUpdated(vishingDetectionEnabled: v)),
               ),
+
+              // ── Call Screening ───────────────────────────────────────────
+              const Divider(),
+              const _SectionHeader('Call Screening'),
+              ListTile(
+                leading: const Icon(Icons.phone_in_talk_outlined),
+                title: const Text('Set as default screening app'),
+                subtitle: const Text(
+                    'Required for Sentri to block calls in the background'),
+                trailing: const Icon(Icons.open_in_new, size: 18),
+                onTap: () => _openCallScreeningSettings(context),
+              ),
+
+              // ── Appearance ───────────────────────────────────────────────
               const Divider(),
               const _SectionHeader('Appearance'),
               ListTile(
@@ -49,15 +87,51 @@ class SettingsPage extends StatelessWidget {
                   value: s.themeMode,
                   underline: const SizedBox.shrink(),
                   items: const [
-                    DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-                    DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-                    DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+                    DropdownMenuItem(
+                        value: ThemeMode.system, child: Text('System')),
+                    DropdownMenuItem(
+                        value: ThemeMode.light, child: Text('Light')),
+                    DropdownMenuItem(
+                        value: ThemeMode.dark, child: Text('Dark')),
                   ],
-                  onChanged: (v) => context.read<SettingsBloc>().add(
-                        SettingsUpdated(themeMode: v),
-                      ),
+                  onChanged: (v) => context
+                      .read<SettingsBloc>()
+                      .add(SettingsUpdated(themeMode: v)),
                 ),
               ),
+
+              // ── Data & Privacy ───────────────────────────────────────────
+              const Divider(),
+              const _SectionHeader('Data & Privacy'),
+              ListTile(
+                leading: const Icon(Icons.no_accounts_outlined),
+                title: const Text('No contact upload'),
+                subtitle: const Text(
+                    'Sentri never reads or uploads your contacts'),
+                enabled: false,
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_sweep_outlined),
+                title: const Text('Clear caller cache'),
+                subtitle: const Text('Remove locally cached risk data'),
+                onTap: () => _clearCache(context),
+              ),
+
+              // ── About ────────────────────────────────────────────────────
+              const Divider(),
+              const _SectionHeader('About'),
+              ListTile(
+                leading: const Icon(Icons.shield_outlined),
+                title: const Text('Sentri'),
+                subtitle: Text('Version ${AppConstants.appVersion}'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: const Text('Privacy policy'),
+                trailing: const Icon(Icons.open_in_new, size: 18),
+                onTap: () => _showPrivacyDialog(context),
+              ),
+              const SizedBox(height: 32),
             ],
           );
         },
@@ -76,12 +150,78 @@ class SettingsPage extends StatelessWidget {
         actions: [60, 70, 80, 90].map((v) {
           return TextButton(
             onPressed: () {
-              context.read<SettingsBloc>().add(SettingsUpdated(blockThreshold: v));
+              context
+                  .read<SettingsBloc>()
+                  .add(SettingsUpdated(blockThreshold: v));
               Navigator.of(context).pop();
             },
             child: Text('$v${v == current ? ' ✓' : ''}'),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _openCallScreeningSettings(BuildContext context) async {
+    try {
+      await _screeningChannel.invokeMethod('openCallScreeningSettings');
+    } on PlatformException {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not open call screening settings')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearCache(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Clear caller cache?'),
+        content: const Text(
+            'Locally cached risk scores will be removed. They will be re-fetched on the next lookup.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Clear')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final count = await getIt<SentriDatabase>().clearAllCallerCache();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cleared $count cached entries')),
+        );
+      }
+    }
+  }
+
+  void _showPrivacyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Sentri is designed with privacy as a first principle:\n\n'
+            '• Your contacts are never read or uploaded.\n'
+            '• Call logs are processed on-device only.\n'
+            '• Risk lookups use only the phone number — no metadata.\n'
+            '• No advertising. No data selling. Ever.\n\n'
+            'Full policy: https://sentri.app/privacy',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close')),
+        ],
       ),
     );
   }
