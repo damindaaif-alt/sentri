@@ -27,12 +27,14 @@ class CallerDetailPage extends StatelessWidget {
             CallerIdLoading() =>
               const Center(child: CircularProgressIndicator()),
             CallerIdLoaded(:final callerInfo) => _CallerDetail(
+                rawNumber: phoneNumber,
                 info: callerInfo.name == null && callerName != null
                     ? callerInfo.copyWithName(callerName!)
                     : callerInfo,
               ),
             CallerIdError(:final message) => _ErrorView(message: message),
             CallerIdReported() => _CallerDetail(
+                rawNumber: phoneNumber,
                 info: CallerInfo(
                   phoneNumber: phoneNumber,
                   name: callerName,
@@ -54,7 +56,9 @@ class CallerDetailPage extends StatelessWidget {
 
 class _CallerDetail extends StatefulWidget {
   final CallerInfo info;
-  const _CallerDetail({required this.info});
+  // The original number as stored on the device — never the E.164-mangled version
+  final String rawNumber;
+  const _CallerDetail({required this.info, required this.rawNumber});
 
   @override
   State<_CallerDetail> createState() => _CallerDetailState();
@@ -72,7 +76,7 @@ class _CallerDetailState extends State<_CallerDetail> {
 
   Future<void> _checkBlocked() async {
     final blocked =
-        await getIt<SentriDatabase>().isBlocked(widget.info.phoneNumber);
+        await getIt<SentriDatabase>().isBlocked(widget.rawNumber);
     if (mounted) setState(() => _isBlocked = blocked);
   }
 
@@ -80,12 +84,9 @@ class _CallerDetailState extends State<_CallerDetail> {
     setState(() => _blockLoading = true);
     final db = getIt<SentriDatabase>();
     if (_isBlocked) {
-      await db.unblockNumber(widget.info.phoneNumber);
+      await db.unblockNumber(widget.rawNumber);
     } else {
-      await db.blockNumber(
-        widget.info.phoneNumber,
-        label: widget.info.name,
-      );
+      await db.blockNumber(widget.rawNumber, label: widget.info.name);
     }
     if (mounted) {
       setState(() {
@@ -96,8 +97,8 @@ class _CallerDetailState extends State<_CallerDetail> {
         SnackBar(
           content: Text(
             _isBlocked
-                ? '${widget.info.phoneNumber} blocked'
-                : '${widget.info.phoneNumber} unblocked',
+                ? '${widget.rawNumber} blocked'
+                : '${widget.rawNumber} unblocked',
           ),
         ),
       );
@@ -112,7 +113,7 @@ class _CallerDetailState extends State<_CallerDetail> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _HeaderCard(info: info),
+          _HeaderCard(info: info, rawNumber: widget.rawNumber),
           const SizedBox(height: 12),
           _RiskCard(info: info),
           const SizedBox(height: 12),
@@ -128,7 +129,7 @@ class _CallerDetailState extends State<_CallerDetail> {
             onTap: _toggleBlock,
           ),
           const SizedBox(height: 10),
-          _ReportButton(info: info),
+          _ReportButton(info: info, rawNumber: widget.rawNumber),
         ],
       ),
     );
@@ -139,12 +140,14 @@ class _CallerDetailState extends State<_CallerDetail> {
 
 class _HeaderCard extends StatelessWidget {
   final CallerInfo info;
-  const _HeaderCard({required this.info});
+  final String rawNumber;
+  const _HeaderCard({required this.info, required this.rawNumber});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final initials = _initials(info.name ?? info.phoneNumber);
+    final displayName = info.name ?? rawNumber;
+    final initials = _initials(displayName);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -152,8 +155,7 @@ class _HeaderCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 36,
-              backgroundColor:
-                  theme.colorScheme.primaryContainer,
+              backgroundColor: theme.colorScheme.primaryContainer,
               child: Text(
                 initials,
                 style: theme.textTheme.headlineMedium?.copyWith(
@@ -164,7 +166,7 @@ class _HeaderCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              info.name ?? info.phoneNumber,
+              displayName,
               style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
@@ -172,7 +174,7 @@ class _HeaderCard extends StatelessWidget {
             if (info.name != null) ...[
               const SizedBox(height: 2),
               Text(
-                info.phoneNumber,
+                rawNumber,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -466,7 +468,8 @@ class _BlockButton extends StatelessWidget {
 
 class _ReportButton extends StatelessWidget {
   final CallerInfo info;
-  const _ReportButton({required this.info});
+  final String rawNumber;
+  const _ReportButton({required this.info, required this.rawNumber});
 
   @override
   Widget build(BuildContext context) {
@@ -487,8 +490,7 @@ class _ReportButton extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => _ReportSheet(
-          phoneNumber: info.phoneNumber, bloc: bloc),
+      builder: (ctx) => _ReportSheet(phoneNumber: rawNumber, bloc: bloc),
     );
   }
 }
