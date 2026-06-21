@@ -35,11 +35,6 @@ dependencies:
 
   # Call functionality
   call_log: ^4.0.0
-  phone_state: ^2.1.0
-  flutter_callkit_incoming: ^2.0.4
-
-  # On-device ML (vishing detection — opt-in)
-  tflite_flutter: ^0.10.4
 
   # Secure storage
   flutter_secure_storage: ^9.2.2
@@ -49,14 +44,9 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.8
-  flutter_svg: ^2.0.10+1
-  shimmer: ^3.0.0
 
   # Utilities
   intl: ^0.19.0
-  logger: ^2.4.0
-  package_info_plus: ^8.0.0
-  connectivity_plus: ^6.0.5
 
 dev_dependencies:
   flutter_test:

@@ -8,6 +8,22 @@ allprojects {
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+
+    // Fix for older Flutter plugins missing the AGP-required `namespace`.
+    // plugins.withId fires at plugin-application time, before AGP validates
+    // the namespace, so this runs early enough to patch the value.
+    project.plugins.withId("com.android.library") {
+        project.android {
+            compileSdk = 35
+            if (namespace == null) {
+                def manifest = project.file("src/main/AndroidManifest.xml")
+                if (manifest.exists()) {
+                    def ns = new XmlSlurper().parse(manifest).@package.text()
+                    if (ns) namespace = ns
+                }
+            }
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
