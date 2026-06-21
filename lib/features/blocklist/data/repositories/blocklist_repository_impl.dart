@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/database/sentri_database.dart';
@@ -12,35 +11,23 @@ class BlocklistRepositoryImpl implements BlocklistRepository {
 
   @override
   Future<List<BlockedNumber>> getAll() async {
-    final rows = await _db.select(_db.blockedNumbers).get();
-    return rows.map(_toEntity).toList();
+    final rows = await _db.getAllBlockedNumbers();
+    return rows.map((r) => BlockedNumber(
+          id: r['id'] as int,
+          phoneNumber: r['phone_number'] as String,
+          label: r['label'] as String?,
+          isPermanent: (r['is_permanent'] as int) == 1,
+          blockedAt: DateTime.fromMillisecondsSinceEpoch(r['blocked_at'] as int),
+        )).toList();
   }
 
   @override
-  Future<bool> isBlocked(String phoneNumber) async {
-    final row = await (_db.select(_db.blockedNumbers)
-          ..where((t) => t.phoneNumber.equals(phoneNumber)))
-        .getSingleOrNull();
-    return row != null;
-  }
+  Future<bool> isBlocked(String phoneNumber) => _db.isBlocked(phoneNumber);
 
   @override
-  Future<void> block(String phoneNumber, {String? label}) async {
-    await _db.into(_db.blockedNumbers).insertOnConflictUpdate(
-          BlockedNumbersCompanion.insert(
-            phoneNumber: phoneNumber,
-            label: Value(label),
-            blockedAt: DateTime.now(),
-          ),
-        );
-  }
+  Future<void> block(String phoneNumber, {String? label}) =>
+      _db.blockNumber(phoneNumber, label: label);
 
   @override
-  Future<void> unblock(String phoneNumber) async {
-    await (_db.delete(_db.blockedNumbers)
-          ..where((t) => t.phoneNumber.equals(phoneNumber)))
-        .go();
-  }
-
-  BlockedNumber _toEntity(BlockedNumber row) => row;
+  Future<void> unblock(String phoneNumber) => _db.unblockNumber(phoneNumber);
 }
