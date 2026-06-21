@@ -218,16 +218,8 @@ class _SettingsPageState extends State<SettingsPage>
       final result = await _screeningChannel
           .invokeMethod<String>('openCallScreeningSettings');
       if (!context.mounted) return;
-      // App settings opened (Samsung fallback) — guide the user
-      if (result == 'app_settings') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Go to Permissions → Phone → allow, then set Sentri as your default calling app',
-            ),
-            duration: Duration(seconds: 6),
-          ),
-        );
+      if (result == 'samsung_manual') {
+        _showSamsungInstructions(context);
       }
     } on PlatformException catch (e) {
       if (!context.mounted) return;
@@ -235,6 +227,83 @@ class _SettingsPageState extends State<SettingsPage>
         SnackBar(content: Text(e.message ?? 'Could not open settings')),
       );
     }
+  }
+
+  void _showSamsungInstructions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Set Sentri as call screening app',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'In the Default Apps screen that just opened:',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            _step(context, 1, 'Tap "Calling"'),
+            _step(context, 2, 'Tap "Call screening app"'),
+            _step(context, 3, 'Select Sentri'),
+            _step(context, 4, 'Tap Allow if prompted, then return here'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(sheetCtx).pop(),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _step(BuildContext context, int n, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 12,
+            backgroundColor:
+                Theme.of(context).colorScheme.primary.withOpacity(0.12),
+            child: Text(
+              '$n',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
   }
 
   void _showThresholdPicker(BuildContext context, int current) {
