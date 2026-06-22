@@ -21,12 +21,26 @@ class _SettingsPageState extends State<SettingsPage>
       MethodChannel('com.sentri.sentri/settings');
 
   bool? _isScreeningActive; // null = loading
+  bool _isSamsungDevice = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _checkDeviceInfo();
     _checkScreeningStatus();
+  }
+
+  Future<void> _checkDeviceInfo() async {
+    try {
+      final info = await _screeningChannel
+          .invokeMapMethod<String, dynamic>('getDeviceInfo');
+      final manufacturer =
+          (info?['manufacturer'] as String? ?? '').toLowerCase();
+      if (mounted) setState(() => _isSamsungDevice = manufacturer == 'samsung');
+    } on PlatformException {
+      // ignore
+    }
   }
 
   @override
@@ -109,47 +123,65 @@ class _SettingsPageState extends State<SettingsPage>
               const _SectionHeader('Call Screening'),
               ListTile(
                 leading: const Icon(Icons.phone_in_talk_outlined),
-                title: const Text('Default screening app'),
+                title: const Text('Background call screening'),
                 subtitle: Text(
-                  _isScreeningActive == true
-                      ? 'Sentri is actively screening calls'
-                      : 'Tap to set Sentri as the default screening app',
+                  _isSamsungDevice
+                      ? 'Tap to learn about Samsung compatibility'
+                      : _isScreeningActive == true
+                          ? 'Sentri is actively screening calls'
+                          : 'Tap to set Sentri as the default screening app',
                 ),
-                trailing: _isScreeningActive == null
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : _isScreeningActive == true
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.check_circle,
-                                  color: SentriColors.riskSafe, size: 18),
-                              const SizedBox(width: 4),
-                              Text('Active',
-                                  style: TextStyle(
-                                      color: SentriColors.riskSafe,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12)),
-                            ],
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.warning_amber_rounded,
-                                  color: SentriColors.riskMedium, size: 18),
-                              const SizedBox(width: 4),
-                              Text('Inactive',
-                                  style: TextStyle(
-                                      color: SentriColors.riskMedium,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12)),
-                            ],
-                          ),
-                onTap: _isScreeningActive == true
-                    ? null
-                    : () => _openCallScreeningSettings(context),
+                trailing: _isSamsungDevice
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.blue[400], size: 18),
+                          const SizedBox(width: 4),
+                          Text('Limited',
+                              style: TextStyle(
+                                  color: Colors.blue[400],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12)),
+                        ],
+                      )
+                    : _isScreeningActive == null
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : _isScreeningActive == true
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      color: SentriColors.riskSafe, size: 18),
+                                  const SizedBox(width: 4),
+                                  Text('Active',
+                                      style: TextStyle(
+                                          color: SentriColors.riskSafe,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12)),
+                                ],
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.warning_amber_rounded,
+                                      color: SentriColors.riskMedium, size: 18),
+                                  const SizedBox(width: 4),
+                                  Text('Inactive',
+                                      style: TextStyle(
+                                          color: SentriColors.riskMedium,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12)),
+                                ],
+                              ),
+                onTap: () => _isSamsungDevice
+                    ? _showSamsungUnsupportedDialog(context)
+                    : _isScreeningActive != true
+                        ? _openCallScreeningSettings(context)
+                        : null,
               ),
 
               // ── Appearance ───────────────────────────────────────────────
@@ -215,12 +247,7 @@ class _SettingsPageState extends State<SettingsPage>
 
   Future<void> _openCallScreeningSettings(BuildContext context) async {
     try {
-      final result = await _screeningChannel
-          .invokeMethod<String>('openCallScreeningSettings');
-      if (!context.mounted) return;
-      if (result == 'samsung_manual') {
-        _showSamsungInstructions(context);
-      }
+      await _screeningChannel.invokeMethod<String>('openCallScreeningSettings');
     } on PlatformException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -229,78 +256,26 @@ class _SettingsPageState extends State<SettingsPage>
     }
   }
 
-  void _showSamsungInstructions(BuildContext context) {
-    showModalBottomSheet(
+  void _showSamsungUnsupportedDialog(BuildContext context) {
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetCtx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Set Sentri as call screening app',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'In the Default Apps screen that just opened:',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 20),
-            _step(context, 1, 'Tap "Calling"'),
-            _step(context, 2, 'Tap "Call screening app"'),
-            _step(context, 3, 'Select Sentri'),
-            _step(context, 4, 'Tap Allow if prompted, then return here'),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(sheetCtx).pop(),
-                child: const Text('Got it'),
-              ),
-            ),
-          ],
+      builder: (_) => AlertDialog(
+        icon: Icon(Icons.info_outline, color: Colors.blue[400], size: 32),
+        title: const Text('Samsung compatibility'),
+        content: const Text(
+          'Samsung One UI reserves background call screening for its own Phone app — '
+          'third-party apps cannot be set as the screening app on this device.\n\n'
+          'What still works on Samsung:\n'
+          '• Manual blocklist — numbers you block are flagged in your call history\n'
+          '• Number lookup — search and identify any number\n'
+          '• Threat feed — browse community-reported scam numbers\n\n'
+          'Background auto-rejection is available on stock Android (Pixel and others).',
         ),
-      ),
-    );
-  }
-
-  Widget _step(BuildContext context, int n, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 12,
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withOpacity(0.12),
-            child: Text(
-              '$n',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

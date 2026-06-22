@@ -11,6 +11,8 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val channel = "com.sentri.sentri/settings"
 
+    private val isSamsung get() = Build.MANUFACTURER.lowercase() == "samsung"
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
@@ -20,12 +22,14 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "openCallScreeningSettings" -> openCallScreeningSettings(result)
                 "isDefaultCallScreeningApp" -> result.success(isDefaultCallScreeningApp())
+                "getDeviceInfo" -> result.success(mapOf("manufacturer" to Build.MANUFACTURER))
                 else -> result.notImplemented()
             }
         }
     }
 
     private fun isDefaultCallScreeningApp(): Boolean {
+        if (isSamsung) return false // Samsung locks this role to its own Phone app
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(RoleManager::class.java)
             return roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
@@ -34,11 +38,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun openCallScreeningSettings(result: MethodChannel.Result) {
-        val isSamsung = Build.MANUFACTURER.lowercase() == "samsung"
+        if (isSamsung) {
+            // Samsung One UI locks ROLE_CALL_SCREENING to its own dialer.
+            // Signal Flutter to show an explanation dialog instead.
+            result.success("samsung_unsupported")
+            return
+        }
 
-        // Samsung One UI locks ROLE_CALL_SCREENING to its own dialer.
-        // Skip the role request on Samsung and use manual fallback instead.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isSamsung) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(RoleManager::class.java)
             if (roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
                 startActivity(
@@ -49,14 +56,13 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Open Default Apps settings — works on Samsung One UI; Flutter shows manual steps
         try {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
             )
-            result.success(if (isSamsung) "samsung_manual" else "default_apps")
+            result.success("default_apps")
         } catch (e: Exception) {
             result.error("UNAVAILABLE", e.message, null)
         }
