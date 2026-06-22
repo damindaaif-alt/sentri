@@ -227,9 +227,9 @@ class _SettingsPageState extends State<SettingsPage>
               const _SectionHeader('Data & Privacy'),
               ListTile(
                 leading: const Icon(Icons.no_accounts_outlined),
-                title: const Text('No contact upload'),
+                title: const Text('Contacts stay on device'),
                 subtitle: const Text(
-                    'Sentri never reads or uploads your contacts'),
+                    'Contacts are checked on-device to identify trusted callers — never uploaded'),
                 enabled: false,
               ),
               ListTile(
@@ -403,7 +403,7 @@ class _SettingsPageState extends State<SettingsPage>
         content: const SingleChildScrollView(
           child: Text(
             'Sentri is designed with privacy as a first principle:\n\n'
-            '• Your contacts are never read or uploaded.\n'
+            '• Contacts are checked on-device only to identify trusted callers — never uploaded.\n'
             '• Call logs are processed on-device only.\n'
             '• Risk lookups use only the phone number — no metadata.\n'
             '• No advertising. No data selling. Ever.\n\n'

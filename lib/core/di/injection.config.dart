@@ -30,6 +30,8 @@ import '../../features/caller_id/data/datasources/caller_id_local_datasource.dar
     as _i555;
 import '../../features/caller_id/data/datasources/caller_id_remote_datasource.dart'
     as _i244;
+import '../../features/caller_id/data/datasources/contacts_datasource.dart'
+    as _i908;
 import '../../features/caller_id/data/repositories/caller_id_repository_impl.dart'
     as _i251;
 import '../../features/caller_id/domain/repositories/caller_id_repository.dart'
@@ -79,6 +81,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i1027.CallLogRepositoryImpl(gh<_i715.SentriDatabase>()));
     gh.factory<_i555.CallerIdLocalDataSource>(
         () => _i555.CallerIdLocalDataSourceImpl(gh<_i715.SentriDatabase>()));
+    gh.factory<_i908.ContactsDataSource>(
+        () => _i908.ContactsDataSourceImpl());
     gh.singleton<_i667.DioClient>(
         () => _i667.DioClient(gh<_i558.FlutterSecureStorage>()));
     gh.factory<_i200.BlockNumber>(
@@ -99,6 +103,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i99.CallerIdRepository>(() => _i251.CallerIdRepositoryImpl(
           gh<_i244.CallerIdRemoteDataSource>(),
           gh<_i555.CallerIdLocalDataSource>(),
+          gh<_i908.ContactsDataSource>(),
         ));
     gh.factory<_i843.LookupCaller>(
         () => _i843.LookupCaller(gh<_i99.CallerIdRepository>()));

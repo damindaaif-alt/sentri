@@ -6,16 +6,32 @@ import '../../domain/entities/caller_info.dart';
 import '../../domain/repositories/caller_id_repository.dart';
 import '../datasources/caller_id_local_datasource.dart';
 import '../datasources/caller_id_remote_datasource.dart';
+import '../datasources/contacts_datasource.dart';
 
 @Injectable(as: CallerIdRepository)
 class CallerIdRepositoryImpl implements CallerIdRepository {
   final CallerIdRemoteDataSource _remote;
   final CallerIdLocalDataSource _local;
+  final ContactsDataSource _contacts;
 
-  const CallerIdRepositoryImpl(this._remote, this._local);
+  const CallerIdRepositoryImpl(this._remote, this._local, this._contacts);
 
   @override
   Future<(CallerInfo, Failure?)> lookup(String phoneNumber) async {
+    // Device contacts take priority — a saved contact is always trusted.
+    final contactName = await _contacts.findByNumber(phoneNumber);
+    if (contactName != null) {
+      return (CallerInfo(
+        phoneNumber: phoneNumber,
+        name: contactName,
+        riskScore: 0,
+        category: RiskCategory.safe,
+        spoofingStatus: SpoofingStatus.unknown,
+        reportCount: 0,
+        evidenceTags: const ['in_contacts'],
+      ), null);
+    }
+
     final cached = await _local.getCached(phoneNumber);
     if (cached != null) return (cached.toDomain(), null);
 
