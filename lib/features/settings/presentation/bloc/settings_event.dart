@@ -16,6 +16,7 @@ final class SettingsUpdated extends SettingsEvent {
   final int? blockThreshold;
   final bool? vishingDetectionEnabled;
   final bool? notificationsEnabled;
+  final String? homeCountryCode;
 
   const SettingsUpdated({
     this.themeMode,
@@ -23,6 +24,7 @@ final class SettingsUpdated extends SettingsEvent {
     this.blockThreshold,
     this.vishingDetectionEnabled,
     this.notificationsEnabled,
+    this.homeCountryCode,
   });
 
   @override
@@ -32,6 +34,7 @@ final class SettingsUpdated extends SettingsEvent {
         blockThreshold,
         vishingDetectionEnabled,
         notificationsEnabled,
+        homeCountryCode,
       ];
 }
 

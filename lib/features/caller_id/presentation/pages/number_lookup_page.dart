@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/phone_number_utils.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../widgets/risk_score_badge.dart';
 
 class NumberLookupPage extends StatefulWidget {
@@ -92,8 +94,13 @@ class _NumberLookupPageState extends State<NumberLookupPage> {
     });
   }
 
+  String get _countryCode {
+    final s = getIt<SettingsBloc>().state;
+    return s is SettingsReady ? s.settings.homeCountryCode : '+1';
+  }
+
   String? get _normalised =>
-      PhoneNumberUtils.toE164(_controller.text.trim());
+      PhoneNumberUtils.toE164(_controller.text.trim(), defaultCountryCode: _countryCode);
   bool get _isValid =>
       _normalised != null && PhoneNumberUtils.isValid(_normalised!);
 

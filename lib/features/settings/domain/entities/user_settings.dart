@@ -8,6 +8,7 @@ class UserSettings extends Equatable {
   final bool vishingDetectionEnabled;
   final bool showRealTimeOverlay;
   final bool notificationsEnabled;
+  final String homeCountryCode;
 
   const UserSettings({
     this.themeMode = ThemeMode.system,
@@ -16,6 +17,7 @@ class UserSettings extends Equatable {
     this.vishingDetectionEnabled = false,
     this.showRealTimeOverlay = true,
     this.notificationsEnabled = true,
+    this.homeCountryCode = '+1',
   });
 
   UserSettings copyWith({
@@ -25,6 +27,7 @@ class UserSettings extends Equatable {
     bool? vishingDetectionEnabled,
     bool? showRealTimeOverlay,
     bool? notificationsEnabled,
+    String? homeCountryCode,
   }) =>
       UserSettings(
         themeMode: themeMode ?? this.themeMode,
@@ -34,6 +37,7 @@ class UserSettings extends Equatable {
             vishingDetectionEnabled ?? this.vishingDetectionEnabled,
         showRealTimeOverlay: showRealTimeOverlay ?? this.showRealTimeOverlay,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+        homeCountryCode: homeCountryCode ?? this.homeCountryCode,
       );
 
   @override
@@ -44,5 +48,6 @@ class UserSettings extends Equatable {
         vishingDetectionEnabled,
         showRealTimeOverlay,
         notificationsEnabled,
+        homeCountryCode,
       ];
 }

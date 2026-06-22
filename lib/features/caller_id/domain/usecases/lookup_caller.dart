@@ -10,15 +10,18 @@ class LookupCaller {
   final CallerIdRepository _repository;
   const LookupCaller(this._repository);
 
-  Future<(CallerInfo?, Failure?)> call(String rawNumber) async {
-    final e164 = PhoneNumberUtils.toE164(rawNumber);
+  Future<(CallerInfo?, Failure?)> call(
+    String rawNumber, {
+    String countryCode = '+1',
+  }) async {
+    final e164 = PhoneNumberUtils.toE164(rawNumber, defaultCountryCode: countryCode);
     if (e164 == null) {
       return (null, const UnknownFailure('Invalid phone number format.'));
     }
 
     try {
-      final info = await _repository.lookup(e164);
-      return (info, null);
+      final (info, failure) = await _repository.lookup(e164);
+      return (info, failure);
     } on Exception catch (e) {
       return (null, UnknownFailure(e.toString()));
     }

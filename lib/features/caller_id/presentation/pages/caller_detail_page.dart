@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/database/sentri_database.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../../domain/entities/caller_info.dart';
 import '../bloc/caller_id_bloc.dart';
 import '../widgets/risk_score_badge.dart';
@@ -18,8 +19,14 @@ class CallerDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) =>
-          getIt<CallerIdBloc>()..add(CallerIdLookupRequested(phoneNumber)),
+      create: (ctx) {
+        final settings = ctx.read<SettingsBloc>().state;
+        final cc = settings is SettingsReady
+            ? settings.settings.homeCountryCode
+            : '+1';
+        return getIt<CallerIdBloc>()
+          ..add(CallerIdLookupRequested(phoneNumber, countryCode: cc));
+      },
       child: Scaffold(
         appBar: AppBar(title: Text(callerName ?? 'Caller Info')),
         body: BlocBuilder<CallerIdBloc, CallerIdState>(

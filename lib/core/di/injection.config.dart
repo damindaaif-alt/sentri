@@ -72,7 +72,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.singleton<_i715.SentriDatabase>(() => _i715.SentriDatabase());
     gh.singleton<_i558.FlutterSecureStorage>(
         () => thirdPartyModule.secureStorage);
-    gh.singleton<_i585.SettingsBloc>(() => _i585.SettingsBloc());
+    gh.singleton<_i585.SettingsBloc>(() => _i585.SettingsBloc(gh<_i715.SentriDatabase>()));
     gh.factory<_i236.BlocklistRepository>(
         () => _i82.BlocklistRepositoryImpl(gh<_i715.SentriDatabase>()));
     gh.factory<_i159.CallLogRepository>(
@@ -109,7 +109,7 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i443.ReportNumber>(),
         ));
     gh.factory<_i902.ThreatFeedRemoteDataSource>(
-        () => const _i902.ThreatFeedRemoteDataSourceImpl());
+        () => _i902.ThreatFeedRemoteDataSourceImpl(gh<_i667.DioClient>()));
     gh.factory<_i901.ThreatFeedLocalDataSource>(
         () => _i901.ThreatFeedLocalDataSourceImpl(gh<_i715.SentriDatabase>()));
     gh.factory<_i904.ThreatFeedRepository>(

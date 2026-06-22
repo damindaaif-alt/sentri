@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../domain/entities/caller_info.dart';
 import '../../domain/repositories/caller_id_repository.dart';
 import '../datasources/caller_id_local_datasource.dart';
@@ -13,24 +15,26 @@ class CallerIdRepositoryImpl implements CallerIdRepository {
   const CallerIdRepositoryImpl(this._remote, this._local);
 
   @override
-  Future<CallerInfo> lookup(String phoneNumber) async {
+  Future<(CallerInfo, Failure?)> lookup(String phoneNumber) async {
     final cached = await _local.getCached(phoneNumber);
-    if (cached != null) return cached.toDomain();
+    if (cached != null) return (cached.toDomain(), null);
 
     try {
       final model = await _remote.lookup(phoneNumber);
       await _local.cache(model);
-      return model.toDomain();
+      return (model.toDomain(), null);
+    } on DioException catch (e) {
+      final fallback = _unknown(phoneNumber);
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        return (fallback, const NetworkFailure());
+      }
+      final code = e.response?.statusCode;
+      return (fallback, ServerFailure(statusCode: code));
     } catch (_) {
-      // No cache and no network — return an unscored unknown caller so the
-      // detail page still renders with block/report actions available.
-      return CallerInfo(
-        phoneNumber: phoneNumber,
-        riskScore: 0,
-        category: RiskCategory.unknown,
-        spoofingStatus: SpoofingStatus.unknown,
-        reportCount: 0,
-      );
+      // Parsing or unexpected error — still render the detail page
+      return (_unknown(phoneNumber), const UnknownFailure());
     }
   }
 
@@ -51,4 +55,12 @@ class CallerIdRepositoryImpl implements CallerIdRepository {
   @override
   Future<void> invalidateCache(String phoneNumber) =>
       _local.invalidate(phoneNumber);
+
+  static CallerInfo _unknown(String phoneNumber) => CallerInfo(
+        phoneNumber: phoneNumber,
+        riskScore: 0,
+        category: RiskCategory.unknown,
+        spoofingStatus: SpoofingStatus.unknown,
+        reportCount: 0,
+      );
 }

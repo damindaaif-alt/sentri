@@ -8,9 +8,10 @@ sealed class CallerIdEvent extends Equatable {
 
 final class CallerIdLookupRequested extends CallerIdEvent {
   final String phoneNumber;
-  const CallerIdLookupRequested(this.phoneNumber);
+  final String countryCode;
+  const CallerIdLookupRequested(this.phoneNumber, {this.countryCode = '+1'});
   @override
-  List<Object?> get props => [phoneNumber];
+  List<Object?> get props => [phoneNumber, countryCode];
 }
 
 final class CallerIdNumberReported extends CallerIdEvent {

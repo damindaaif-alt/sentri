@@ -25,7 +25,10 @@ class CallerIdBloc extends Bloc<CallerIdEvent, CallerIdState> {
     Emitter<CallerIdState> emit,
   ) async {
     emit(CallerIdLoading());
-    final (info, failure) = await _lookupCaller(event.phoneNumber);
+    final (info, failure) = await _lookupCaller(
+      event.phoneNumber,
+      countryCode: event.countryCode,
+    );
     if (failure != null) {
       emit(CallerIdError(failure.message));
     } else {

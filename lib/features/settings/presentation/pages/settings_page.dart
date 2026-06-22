@@ -184,6 +184,22 @@ class _SettingsPageState extends State<SettingsPage>
                         : null,
               ),
 
+              // ── Regional ────────────────────────────────────────────────
+              const Divider(),
+              const _SectionHeader('Regional'),
+              ListTile(
+                title: const Text('Home country'),
+                subtitle: const Text('Used to normalise local numbers without a country prefix'),
+                trailing: Text(
+                  _countryLabel(s.homeCountryCode),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                ),
+                onTap: () => _showCountryPicker(context, s.homeCountryCode),
+              ),
+
               // ── Appearance ───────────────────────────────────────────────
               const Divider(),
               const _SectionHeader('Appearance'),
@@ -241,6 +257,54 @@ class _SettingsPageState extends State<SettingsPage>
             ],
           );
         },
+      ),
+    );
+  }
+
+  static const _countries = [
+    ('+94', 'Sri Lanka (+94)'),
+    ('+64', 'New Zealand (+64)'),
+    ('+61', 'Australia (+61)'),
+    ('+1', 'United States / Canada (+1)'),
+    ('+44', 'United Kingdom (+44)'),
+    ('+91', 'India (+91)'),
+    ('+65', 'Singapore (+65)'),
+    ('+60', 'Malaysia (+60)'),
+    ('+63', 'Philippines (+63)'),
+    ('+49', 'Germany (+49)'),
+  ];
+
+  static String _countryLabel(String code) {
+    for (final (c, label) in _countries) {
+      if (c == code) return label;
+    }
+    return code;
+  }
+
+  void _showCountryPicker(BuildContext context, String current) {
+    showDialog(
+      context: context,
+      builder: (_) => SimpleDialog(
+        title: const Text('Home country'),
+        children: _countries.map(((String, String) entry) {
+          final (code, label) = entry;
+          return SimpleDialogOption(
+            onPressed: () {
+              context
+                  .read<SettingsBloc>()
+                  .add(SettingsUpdated(homeCountryCode: code));
+              Navigator.of(context).pop();
+            },
+            child: Row(
+              children: [
+                Expanded(child: Text(label)),
+                if (code == current)
+                  Icon(Icons.check, size: 18,
+                      color: Theme.of(context).colorScheme.primary),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
