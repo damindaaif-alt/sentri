@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/database/sentri_database.dart';
+import '../../../../core/platform/call_directory_sync.dart';
 import '../../domain/entities/blocked_number.dart';
 import '../../domain/repositories/blocklist_repository.dart';
 
@@ -25,9 +26,22 @@ class BlocklistRepositoryImpl implements BlocklistRepository {
   Future<bool> isBlocked(String phoneNumber) => _db.isBlocked(phoneNumber);
 
   @override
-  Future<void> block(String phoneNumber, {String? label}) =>
-      _db.blockNumber(phoneNumber, label: label);
+  Future<void> block(String phoneNumber, {String? label}) async {
+    await _db.blockNumber(phoneNumber, label: label);
+    await _syncExtension();
+  }
 
   @override
-  Future<void> unblock(String phoneNumber) => _db.unblockNumber(phoneNumber);
+  Future<void> unblock(String phoneNumber) async {
+    await _db.unblockNumber(phoneNumber);
+    await _syncExtension();
+  }
+
+  Future<void> _syncExtension() async {
+    final rows = await _db.getAllBlockedNumbers();
+    final numbers = rows
+        .map((r) => r['phone_number'] as String)
+        .toList();
+    await CallDirectorySync.sync(blockedNumbers: numbers);
+  }
 }

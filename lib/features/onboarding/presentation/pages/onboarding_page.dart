@@ -42,9 +42,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
     _Step(
       icon: Icons.lock_outlined,
-      title: 'One permission needed',
+      title: 'Three quick permissions',
       body:
-          'Sentri needs phone access to screen calls and show caller risk scores. Nothing else.',
+          'Phone access screens calls. Contacts names callers locally. Notifications alert you when a scam call is blocked or detected.',
       isPermissionStep: true,
     ),
   ];
@@ -140,18 +140,21 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     final statuses = await [
       Permission.phone,
+      Permission.contacts,
+      Permission.notification,
     ].request();
 
     if (!mounted) return;
     setState(() => _requesting = false);
 
-    final granted = statuses[Permission.phone]?.isGranted ?? false;
-    if (granted) {
-      await _markComplete();
-      if (mounted) context.go(AppRoutes.home);
-    } else {
+    final phoneGranted = statuses[Permission.phone]?.isGranted ?? false;
+    if (!phoneGranted) {
       _showPermissionDeniedDialog();
+      return;
     }
+    // Contacts is optional — trusted-contact check is silently inactive when denied.
+    await _markComplete();
+    if (mounted) context.go(AppRoutes.home);
   }
 
   Future<void> _skip() async {
@@ -264,6 +267,18 @@ class _StepView extends StatelessWidget {
               icon: Icons.phone_outlined,
               label: 'Phone & call log access',
               sublabel: 'To screen calls and show risk scores',
+            ),
+            const SizedBox(height: 10),
+            _PermissionTile(
+              icon: Icons.contacts_outlined,
+              label: 'Contacts access',
+              sublabel: 'To name callers — stays on your device',
+            ),
+            const SizedBox(height: 10),
+            _PermissionTile(
+              icon: Icons.notifications_outlined,
+              label: 'Notifications',
+              sublabel: 'To alert you when a scam call is blocked',
             ),
           ],
         ],

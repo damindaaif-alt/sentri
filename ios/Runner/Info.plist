@@ -46,13 +46,6 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
-	<!-- CallKit — caller ID extension -->
-	<key>NSExtension</key>
-	<dict>
-		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.callkit.call-directory</string>
-	</dict>
-
 	<!-- Required usage descriptions -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Sentri uses the microphone for optional on-device vishing detection. This is opt-in and processed entirely on your device.</string>

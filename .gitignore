@@ -45,3 +45,13 @@ app.*.map.json
 # Backend
 /backend/node_modules/
 /backend/.env
+/backend/data/
+
+# Android signing — NEVER commit these
+/android/key.properties
+/android/keystore/*.jks
+/android/keystore/*.keystore
+
+# SQLite data directories (local dev)
+/data/
+/backend/data/
